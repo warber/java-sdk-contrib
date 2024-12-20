@@ -107,19 +107,19 @@ public class Util {
      * @param onConnectionReady a {@link Runnable} to execute when the channel becomes READY
      * @param onConnectionLost  a {@link Runnable} to execute when the channel enters a TRANSIENT_FAILURE state
      */
-    public static void monitorChannelState(ManagedChannel channel, Runnable onConnectionReady,
-                                           Runnable onConnectionLost) {
-        channel.notifyWhenStateChanged(channel.getState(true), () -> {
-            ConnectivityState state = channel.getState(false);
-            log.debug("Channel state changed to: {}", state);
-            if (state == ConnectivityState.READY) {
+    public static void monitorChannelState(ConnectivityState expectedState, ManagedChannel channel,
+                                           Runnable onConnectionReady, Runnable onConnectionLost) {
+        channel.notifyWhenStateChanged(expectedState, () -> {
+            ConnectivityState currentState = channel.getState(false);
+            log.debug("Channel state changed to: {}", currentState);
+            if (currentState == ConnectivityState.READY) {
                 onConnectionReady.run();
-            }
-            if (state == ConnectivityState.TRANSIENT_FAILURE) {
+            } else if (currentState == ConnectivityState.TRANSIENT_FAILURE ||
+                    currentState == ConnectivityState.SHUTDOWN) {
                 onConnectionLost.run();
             }
             // Re-register the state monitor to watch for the next state transition.
-            monitorChannelState(channel, onConnectionReady, onConnectionLost);
+            monitorChannelState(currentState, channel, onConnectionReady, onConnectionLost);
         });
     }
 }
